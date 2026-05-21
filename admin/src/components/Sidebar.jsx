@@ -82,6 +82,11 @@ overflow-y-auto
             <span>Appointments</span>
           </NavLink>
 
+          <NavLink to="/doctor-follow-ups" className={linkClass}>
+            <User size={18} className={iconClass}/>
+            <span>Follow-Ups</span>
+          </NavLink>
+
           <NavLink to="/doctor-profile" className={linkClass}>
             <User size={18} className={iconClass}/>
             <span>Profile</span>

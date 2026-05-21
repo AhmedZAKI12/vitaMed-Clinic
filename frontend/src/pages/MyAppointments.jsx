@@ -2,11 +2,15 @@ import { useContext, useEffect, useState } from 'react'
 import { AppContext } from '../context/AppContext'
 import axios from 'axios'
 import { toast } from 'react-toastify'
+import { useNavigate } from 'react-router-dom'
 
 const MyAppointments = () => {
 
-const { backendUrl, token, getDoctosData } = useContext(AppContext)
 
+  
+  const { backendUrl, token, getDoctosData } = useContext(AppContext)
+  
+  const navigate = useNavigate()
 const [appointments, setAppointments] = useState([])
 const [userRatings, setUserRatings] = useState({})
 const [reviews, setReviews] = useState({})
@@ -15,7 +19,7 @@ const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov
 
 const slotDateFormat = (slotDate) => {
 const dateArray = slotDate.split('_')
-return dateArray[0] + " " + months[Number(dateArray[1])] + " " + dateArray[2]
+return dateArray[0] + " " + months[Number(dateArray[1])-1] + " " + dateArray[2]
 }
 
 // =========================
@@ -187,10 +191,27 @@ Cancel appointment
 {item.isCompleted && (
 
 <div>
+<div className='space-y-3'>
 
-<div className='bg-green-100 text-green-600 text-center py-1 rounded-full text-sm mb-3'>
-Completed
+  {/* COMPLETED BADGE */}
+  <div className='bg-green-100 text-green-600 text-center py-1 rounded-full text-sm'>
+    Completed
+  </div>
+
+  {/* 🔥 FOLLOW UP BUTTON */}
+  {item.recordId && (
+    <button
+      onClick={() => navigate(`/follow-up/${item.recordId}`)}
+      className='w-full py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:scale-105 transition font-medium'
+    >
+      Add Follow-Up
+    </button>
+  )}
+
 </div>
+
+
+
 
 {/* REVIEW SECTION */}
 

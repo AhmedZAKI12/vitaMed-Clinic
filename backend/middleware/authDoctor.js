@@ -22,7 +22,7 @@
         }
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.body.docId = decoded.id;
+        req.docId = decoded.id;
 
         next();
     } catch (error) {

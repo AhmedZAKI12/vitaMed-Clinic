@@ -23,10 +23,23 @@ const DoctorAppointments = () => {
     }
   }, [dToken]);
 
-  const filteredAppointments = appointments.filter((item) =>
+  const filteredAppointments = appointments
+  .filter((item) =>
     item.userData.name.toLowerCase().includes(search.toLowerCase())
-  );
+  )
+  .sort((a, b) => {
 
+    const [dayA, monthA, yearA] = a.slotDate.split("_")
+    const [dayB, monthB, yearB] = b.slotDate.split("_")
+
+
+    const timeA = new Date(`${yearA}-${monthA}-${dayA} ${a.slotTime}`)
+const timeB = new Date(`${yearB}-${monthB}-${dayB} ${b.slotTime}`)
+
+return timeA - timeB
+    
+    
+  })
   // =========================
   // STATUS
   // =========================

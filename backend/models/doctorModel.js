@@ -25,6 +25,6 @@ import mongoose from "mongoose";
     );
 
     const doctorModel =
-    mongoose.models.doctor || mongoose.model("doctor", doctorSchema);
+    mongoose.models.Doctor || mongoose.model("Doctor", doctorSchema);
 
     export default doctorModel;

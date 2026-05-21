@@ -4,6 +4,7 @@ import doctorModel from "../models/doctorModel.js";
 import appointmentModel from "../models/appointmentModel.js";
 import userModel from "../models/userModel.js";
 import { sendEmail } from "../utils/sendEmail.js";
+import medicalRecordModel from "../models/medicalRecordModel.js";
 
 // =======================
 // API for Doctor Login
@@ -37,8 +38,8 @@ const loginDoctor = async (req, res) => {
 // =======================
 const appointmentsDoctor = async (req, res) => {
     try {
-        const { docId } = req.body;
-        const appointments = await appointmentModel.find({ docId });
+        const  docId  = req.docId; // جاي من authdoctor
+        const appointments = await appointmentModel.find({ docId }).sort({ date: -1 });
         res.json({ success: true, appointments });
     } catch (error) {
         console.log(error);
@@ -49,27 +50,40 @@ const appointmentsDoctor = async (req, res) => {
 // =======================
 // Cancel Appointment
 // =======================
+
 const appointmentCancel = async (req, res) => {
     try {
 
-        const { docId, appointmentId } = req.body;
+        const docId = req.docId; // جاي من authDoctor
+        const { appointmentId } = req.body;
 
         const appointmentData = await appointmentModel.findById(appointmentId);
 
-        if (appointmentData && appointmentData.docId === docId) {
+        // 🔴 check exists
+        if (!appointmentData) {
+            return res.json({ success: false, message: "Appointment not found" });
+        }
 
-            await appointmentModel.findByIdAndUpdate(appointmentId, {
-                cancelled: true,
-                status: "cancelled"
-            });
+        // 🔴 check ownership
+        if (appointmentData.docId.toString() !== docId) {
+            return res.json({ success: false, message: "Unauthorized" });
+        }
 
-            const user = await userModel.findById(appointmentData.userId)
-            const doctor = await doctorModel.findById(docId)
+        // ✅ cancel appointment
+        await appointmentModel.findByIdAndUpdate(appointmentId, {
+            cancelled: true,
+            status: "cancelled"
+        });
 
-            // EMAIL
-            await sendEmail(
-                user.email,
-                "Appointment Cancelled - VitaMed Clinic",
+        // ✅ send email
+        const user = await userModel.findById(appointmentData.userId).select("email name");
+        const doctor = await doctorModel.findById(docId).select("name");
+if (!user) {
+            return res.json({ success: false, message: "User not found" });
+        }
+        await sendEmail(
+            user.email,
+            "Appointment Cancelled - VitaMed Clinic",
 `Hello ${user.name},
 
 Your appointment has been cancelled by the doctor.
@@ -81,12 +95,12 @@ Time: ${appointmentData.slotTime}
 Please book another appointment if needed.
 
 VitaMed Clinic`
-            )
+        );
 
-            return res.json({ success: true, message: "Appointment Cancelled" });
-        }
-
-        res.json({ success: false, message: "Appointment not found" });
+        return res.json({
+            success: true,
+            message: "Appointment Cancelled"
+        });
 
     } catch (error) {
         console.log(error);
@@ -97,25 +111,41 @@ VitaMed Clinic`
 // =======================
 // CONFIRM Appointment
 // =======================
+
 const appointmentConfirm = async (req, res) => {
     try {
 
-        const { docId, appointmentId } = req.body;
+        const docId = req.docId; // جاي من authDoctor
+        const { appointmentId } = req.body;
 
         const appointmentData = await appointmentModel.findById(appointmentId);
 
-        if (appointmentData && appointmentData.docId === docId) {
+        // 🔴 check exists
+        if (!appointmentData) {
+            return res.json({ success: false, message: "Appointment not found" });
+        }
 
-            await appointmentModel.findByIdAndUpdate(appointmentId, {
-                status: "confirmed"
-            });
+        // 🔴 check ownership
+        if (appointmentData.docId.toString() !== docId) {
+            return res.json({ success: false, message: "Unauthorized" });
+        }
 
-            const user = await userModel.findById(appointmentData.userId)
-            const doctor = await doctorModel.findById(docId)
+        // ✅ confirm appointment
+        await appointmentModel.findByIdAndUpdate(appointmentId, {
+            status: "confirmed"
+        });
 
-            await sendEmail(
-                user.email,
-                "Appointment Confirmed - VitaMed Clinic",
+        // ✅ send email
+        const user = await userModel.findById(appointmentData.userId);
+        const doctor = await doctorModel.findById(docId);
+
+        if (!user) {
+            return res.json({ success: false, message: "User not found" });
+        }
+
+        await sendEmail(
+            user.email,
+            "Appointment Confirmed - VitaMed Clinic",
 `Hello ${user.name},
 
 Your appointment has been confirmed.
@@ -128,12 +158,12 @@ Please arrive 10 minutes before your appointment.
 
 Thank you,
 VitaMed Clinic`
-            )
+        );
 
-            return res.json({ success: true, message: "Appointment Confirmed" });
-        }
-
-        res.json({ success: false, message: "Appointment not found" });
+        return res.json({
+            success: true,
+            message: "Appointment Confirmed"
+        });
 
     } catch (error) {
         console.log(error);
@@ -144,47 +174,87 @@ VitaMed Clinic`
 // =======================
 // Complete Appointment
 // =======================
+
 const appointmentComplete = async (req, res) => {
     try {
 
-        const { docId, appointmentId } = req.body;
+        const docId = req.docId; // جاي من authDoctor
+        const { appointmentId } = req.body;
 
         const appointmentData = await appointmentModel.findById(appointmentId);
 
-        if (appointmentData && appointmentData.docId === docId) {
+        // 🔴 1) Check if appointment exists
+        if (!appointmentData) {
+            return res.json({ success: false, message: "Appointment not found" });
+        }
 
-            await appointmentModel.findByIdAndUpdate(appointmentId, {
-                isCompleted: true,
-                status: "completed"
-            });
+        // 🔴 2) Check ownership
+        if (appointmentData.docId.toString() !== docId) {
+            return res.json({ success: false, message: "Unauthorized" });
+        }
 
-            const doctorData = await doctorModel.findById(docId)
+        // ✅ 3) Update appointment
+        await appointmentModel.findByIdAndUpdate(appointmentId, {
+            isCompleted: true,
+            status: "completed"
+        });
 
-            let slots_booked = doctorData.slots_booked || {}
 
-            const slotDate = appointmentData.slotDate
-            const slotTime = appointmentData.slotTime
+// ================= CREATE MEDICAL RECORD =================
 
-            if (slots_booked[slotDate]) {
 
-                slots_booked[slotDate] = slots_booked[slotDate].filter(
-                    time => time !== slotTime
-                )
+const existingRecord = await medicalRecordModel.findOne({
+    appointmentId: appointmentId
+});
 
-                if (slots_booked[slotDate].length === 0) {
-                    delete slots_booked[slotDate]
-                }
+if (!existingRecord) {
+    await medicalRecordModel.create({
+        patientId: appointmentData.userId,
+        doctorId: appointmentData.docId,
+        appointmentId: appointmentId,
+        diagnosis: "Pending",
+        prescription: "Pending",
+        followUpRequired: true,
+        updates: [],
+        doctorReplies: []
+    });
+}
+
+
+        // ✅ 4) Update doctor slots
+        const doctorData = await doctorModel.findById(docId);
+
+        let slots_booked = doctorData.slots_booked || {};
+
+        const slotDate = appointmentData.slotDate;
+        const slotTime = appointmentData.slotTime;
+
+        if (slots_booked[slotDate]) {
+
+            slots_booked[slotDate] =
+                slots_booked[slotDate].filter(time => time !== slotTime);
+
+            if (slots_booked[slotDate].length === 0) {
+                delete slots_booked[slotDate];
             }
+        }
 
-            await doctorModel.findByIdAndUpdate(docId, { slots_booked })
+        await doctorModel.findByIdAndUpdate(docId, { slots_booked });
 
-            const user = await userModel.findById(appointmentData.userId)
-            const doctor = await doctorModel.findById(docId)
+        // ✅ 5) Send email
+        const user = await userModel.findById(appointmentData.userId);
+        const doctor = await doctorModel.findById(docId);
 
-            // EMAIL
-            await sendEmail(
-                user.email,
-                "Appointment Completed - VitaMed Clinic",
+        if (!doctor) {
+            return res.json({ success: false, message: "Doctor not found" });
+        }
+        if (!user) {
+            return res.json({ success: false, message: "User not found" });
+        }
+
+        await sendEmail(
+            user.email,
+            "Appointment Completed - VitaMed Clinic",
 `Hello ${user.name},
 
 Your appointment has been completed successfully.
@@ -193,23 +263,19 @@ Doctor: Dr. ${doctor.name}
 
 Thank you for visiting VitaMed Clinic.
 We wish you good health.`
-            )
+        );
 
-            return res.json({
-                success: true,
-                message: "Appointment Completed and slot reopened"
-            })
-        }
-
-        res.json({ success: false, message: "Appointment not found" })
+        // ✅ 6) Final response
+        return res.json({
+            success: true,
+            message: "Appointment Completed and slot reopened"
+        });
 
     } catch (error) {
-        console.log(error)
-        res.json({ success: false, message: error.message })
+        console.log(error);
+        res.json({ success: false, message: error.message });
     }
 };
-
-
 
 
 
@@ -234,8 +300,12 @@ const doctorList = async (req, res) => {
 // =======================
 const changeAvailablity = async (req, res) => {
     try {
-        const { docId } = req.body;
+        const  docId  = req.docId; // جاي من authdoctor
+        
         const docData = await doctorModel.findById(docId);
+        if (!docData) {
+            return res.json({ success: false, message: "Doctor not found" });
+        }
 
         await doctorModel.findByIdAndUpdate(docId, {
             available: !docData.available
@@ -253,7 +323,7 @@ const changeAvailablity = async (req, res) => {
 // =======================
 const doctorProfile = async (req, res) => {
     try {
-        const { docId } = req.body;
+        const  docId  = req.docId; // جاي من authdoctor
         const profileData = await doctorModel.findById(docId).select("-password");
         res.json({ success: true, profileData });
     } catch (error) {
@@ -267,7 +337,8 @@ const doctorProfile = async (req, res) => {
 // =======================
 const updateDoctorProfile = async (req, res) => {
     try {
-        const { docId, fees, address, available } = req.body;
+        const  docId  = req.docId; // جاي من authdoctor
+        const { fees, address, available } = req.body;
 
         await doctorModel.findByIdAndUpdate(docId, {
             fees,
@@ -287,8 +358,8 @@ const updateDoctorProfile = async (req, res) => {
 // =======================
 const doctorDashboard = async (req, res) => {
     try {
-        const { docId } = req.body;
-        const appointments = await appointmentModel.find({ docId });
+        const  docId  = req.docId; // جاي من authdoctor
+        const appointments = await appointmentModel.find({ docId }).sort({ date: -1 });
 
         let earnings = 0;
         let patients = [];
@@ -306,7 +377,7 @@ const doctorDashboard = async (req, res) => {
             earnings,
             appointments: appointments.length,
             patients: patients.length,
-            latestAppointments: appointments.reverse()
+            latestAppointments: [...appointments]
         };
 
         res.json({ success: true, dashData });
@@ -376,6 +447,56 @@ const score = (rating * 3) + (experience * 1.5) - load
 
 
 
+
+    //medical record
+    const addMedicalRecord = async (req, res) => {
+    try {
+        const { appointmentId, diagnosis, prescription, followUpRequired, followUpDate } = req.body;
+
+        // ✅ استخدم الاسم الصح
+        const appointment = await appointmentModel.findById(appointmentId);
+
+        if (!appointment) {
+            return res.json({ success: false, message: "Appointment not found" });
+            }
+            if(appointment.docId.toString() !== req.docId){
+                return res.json({ success: false, message: "Unauthorized" });
+            }
+            
+
+        // ✅ منع التكرار
+        const existing = await medicalRecordModel.findOne({ appointmentId });
+
+        if (existing) {
+            return res.json({
+                success: false,
+                message: "Medical record already exists"
+            });
+        }
+
+        const newRecord = new medicalRecordModel({
+            patientId: appointment.userId,
+            doctorId: appointment.docId,
+            appointmentId,
+            diagnosis,
+            prescriptions: [
+                {
+                    text: prescription
+                }
+            ],
+            followUpRequired,
+            followUpDate
+        });
+
+        await newRecord.save();
+
+        res.json({ success: true, message: "Medical record added" });
+
+    } catch (error) {
+        console.log(error);
+        res.json({ success: false, message: error.message });
+    }
+};
 // getDoctorReviews
 const getDoctorReviews = async (req, res) => {
     try {
@@ -427,6 +548,184 @@ const getDoctorReviews = async (req, res) => {
         })
     }
 }
+// =======================Get Follow-up Updates
+    const getFollowUpUpdates = async (req, res) => {
+    try {
+
+        const { recordId } = req.body;
+
+        // check
+        if (!recordId) {
+        return res.json({
+            success: false,
+            message: "recordId is required"
+        });
+        }
+
+        const record = await medicalRecordModel.findOne({
+        _id: recordId,
+        doctorId: req.docId
+        });
+
+        if (!record) {
+        return res.json({
+            success: false,
+            message: "Record not found"
+        });
+        }
+
+        res.json({
+        success: true,
+        updates: record.updates,
+        replies: record.doctorReplies
+        });
+
+    } catch (error) {
+        res.json({
+        success: false,
+        message: error.message
+        });
+    }
+    };
+
+
+// ======================= Reply to Follow-up
+    const replyToFollowUp = async (req, res) => {
+    try {
+        const { recordId, message,prescription  } = req.body;
+
+        console.log("Replying to record:", recordId, "with message:", message, "and prescription:", prescription); // 🔥 debug
+
+        const record = await medicalRecordModel
+            .findById(recordId)
+            .populate("patientId", "name email") // 🔥 دي مهمة
+
+        if (!record) {
+            return res.json({
+                success: false,
+                message: "Record not found"
+            });
+        }
+
+        // ✅ save reply
+        record.doctorReplies.push({ message });
+        record.status = "active";
+
+        if(prescription){
+            record.prescriptions.push({ text: prescription });
+        }
+        
+
+        await record.save();
+
+        // ✅ user جاهز مباشرة
+        const user = record.patientId;
+
+        // ✅ doctor
+        const doctor = await doctorModel.findById(record.doctorId);
+
+        if (user && doctor) {
+            await sendEmail(
+                user.email,
+                "Reply from your doctor - VitaMed Clinic",
+`Hello ${user.name},
+your doctor has responded to your follow-up inquiry.
+
+${doctor.name} has replied to your follow-up:
+
+✉ message:
+"${message}"
+Please log in to your account to view the full details and respond if necessary.
+
+
+stay safe and healthy!
+Thank you,
+
+VitaMed Clinic`
+            );
+        }
+
+        res.json({
+            success: true,
+            message: "Reply added and email sent"
+        });
+
+    } catch (err) {
+        console.log(err);
+        res.json({
+            success: false,
+            message: "Error"
+        });
+    }
+};
+
+
+
+
+// ======================= Get Doctor's Medical Records
+    const getDoctorRecords = async (req, res) => {
+    try {
+        const docId = req.docId;
+
+        const records = await medicalRecordModel
+            .find({ doctorId: docId })
+            .populate("patientId", "name email") // جلب بيانات المريض (الاسم والبريد الإلكتروني)    
+            .sort({ createdAt: -1 });
+            console.log("Doctor Records:", records); // 🔥 debug
+
+        res.json({
+            success: true,
+            records
+        });
+
+    } catch (error) {
+        res.json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+
+
+
+// ======================= Get Single Medical Record (with auth check)
+
+
+
+const getSingleRecord = async (req, res) => {
+    try {
+
+        const { id } = req.params
+
+        const record = await medicalRecordModel.findOne({
+            _id: id,
+            doctorId: req.docId
+        })
+
+        if (!record) {
+            return res.json({
+                success: false,
+                message: "Record not found or unauthorized"
+            })
+        }
+
+        res.json({
+            success: true,
+            record
+        })
+
+    } catch (error) {
+        res.json({
+            success: false,
+            message: error.message
+        })
+    }
+}
+
+
+
+
 
 
 
@@ -447,5 +746,10 @@ export {
     doctorDashboard,
     doctorProfile,
     updateDoctorProfile,
-    getDoctorReviews
+    addMedicalRecord,
+    getDoctorReviews,
+    getFollowUpUpdates,
+    replyToFollowUp,
+    getDoctorRecords,
+    getSingleRecord
 };

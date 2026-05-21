@@ -6,6 +6,7 @@ import doctorModel from "../models/doctorModel.js";
 import appointmentModel from "../models/appointmentModel.js";
 import { v2 as cloudinary } from 'cloudinary'
 import { sendEmail } from "../utils/sendEmail.js";
+import medicalRecordModel from "../models/medicalRecordModel.js";
 
 // ================= REGISTER =================
 const registerUser = async (req, res) => {
@@ -84,7 +85,7 @@ const loginUser = async (req, res) => {
 const getProfile = async (req, res) => {
   try {
 
-    const { userId } = req.body
+    const  userId  = req.userId; // جاي من authUser
 
     const userData = await userModel
       .findById(userId)
@@ -101,8 +102,8 @@ const getProfile = async (req, res) => {
 
 const updateProfile = async (req, res) => {
   try {
-
-    const { userId, name, phone, address, dob, gender } = req.body
+const  userId  = req.userId; // جاي من authUser 
+    const { name, phone, address, dob, gender } = req.body
     const imageFile = req.file
 
     await userModel.findByIdAndUpdate(userId, {
@@ -135,8 +136,8 @@ const updateProfile = async (req, res) => {
 // ================= BOOK APPOINTMENT =================
 const bookAppointment = async (req, res) => {
   try {
-
-    const { userId, docId, slotDate, slotTime } = req.body
+const  userId  = req.userId ; // جاي من authUser
+    const {  docId, slotDate, slotTime } = req.body
 
     if (!userId || !docId || !slotDate || !slotTime) {
       return res.json({ success: false, message: "Missing booking data" })
@@ -178,6 +179,15 @@ const bookAppointment = async (req, res) => {
     })
 
     await appointment.save()
+    console.log("Appointment booked:", appointment._id)
+    await medicalRecordModel.create({
+      patientId: userId,
+      doctorId: docId,
+      appointmentId: appointment._id,
+      updates: [],
+      doctorReplies: [],
+      followUpRequired: true // نفترض أن كل موعد يحتاج متابعة، يمكن تعديله حسب الحاجة
+    })
 
 
     // ================= EMAIL NOTIFICATIONS =================
@@ -235,8 +245,8 @@ Please check your dashboard for more details.`
 const cancelAppointment = async (req, res) => {
 
   try {
-
-    const { userId, appointmentId } = req.body
+const  userId  = req.userId; // جاي من authUser
+    const  {appointmentId}  = req.body;
 
     const appointment = await appointmentModel.findById(appointmentId)
 
@@ -299,7 +309,7 @@ const cancelAppointment = async (req, res) => {
     await sendEmail(
       doctor.email,
       "Appointment Cancelled by Patient - VitaMed Clinic",
-      `Hello Dr. ${doctor.name},
+      `Hello  ${doctor.name},
 
 The patient has cancelled the appointment.
 
@@ -338,27 +348,45 @@ VitaMed Clinic`
 const listAppointment = async (req, res) => {
   try {
 
-    const { userId } = req.body
+    const userId = req.userId;
 
     const appointments = await appointmentModel
       .find({ userId })
-      .sort({ date: -1 })
+      .sort({ date: -1 });
 
-    res.json({ success: true, appointments })
+    // 🔥 نجيب record لكل appointment
+    const data = await Promise.all(
+      appointments.map(async (appt) => {
+
+        const record = await medicalRecordModel.findOne({
+          appointmentId: appt._id
+        });
+
+        return {
+          ...appt._doc,
+          recordId: record ? record._id : null
+        };
+      })
+    );
+
+    res.json({
+      success: true,
+      appointments: data
+    });
 
   } catch (error) {
-    console.log(error)
-    res.json({ success: false })
+    console.log(error);
+    res.json({ success: false });
   }
-}
+};
 
 
 
 // ================= RATE DOCTOR =================
 const rateDoctor = async (req, res) => {
   try {
-
-    const { userId, docId, rating, review } = req.body
+const  userId  = req.userId; // جاي من authUser
+    const {  docId, rating, review } = req.body
 
     if (!rating || rating < 1 || rating > 5) {
       return res.json({ success: false, message: "Invalid rating" })
@@ -405,6 +433,178 @@ const rateDoctor = async (req, res) => {
 }
 
 
+// =======================
+// ADD FOLLOW-UP UPDATE (Patient)
+// =======================
+const addFollowUpUpdate = async (req, res) => {
+  try {
+    const { recordId, painLevel, symptoms, notes } = req.body;
+
+    // تحقق بسيط
+    if (!recordId) {
+      return res.json({ success: false, message: "recordId is required" });
+    }
+
+    const record = await medicalRecordModel.findById(recordId);
+
+    if (!record) {
+      return res.json({ success: false, message: "Record not found" });
+    }
+
+    if (record.patientId.toString() !== req.userId.toString()) {
+      return res.json({ success: false, message: "Unauthorized" });
+    }
+    if(!painLevel || !symptoms){
+      return res.json({ success: false, message: "Pain level and symptoms are required" });
+    }
+      if (painLevel < 1 || painLevel > 10) {
+      return res.json({ success: false, message: "Invalid pain level. Please enter a value between 1 and 10." });
+    }
+
+
+    // إضافة update
+    record.updates.push({
+      painLevel,
+      symptoms,
+      notes
+    
+    });
+
+    record.status = "pending" ;
+      
+await record.save()
+
+    // ✅ send email
+    const doctor = await doctorModel.findById(record.doctorId)
+
+    if (doctor?.email) {
+      await sendEmail(
+        doctor.email,
+        "New Follow-Up Update - VitaMed Clinic",
+        `Hello Dr. ${doctor.name},
+
+New update from your patient:
+
+Pain Level: ${painLevel}/10
+Symptoms: ${symptoms}
+Notes: ${notes || "No notes"}`
+      )
+    }
+
+    return res.json({
+      success: true,
+      message: "Update added"
+    })
+
+  } catch (err) {
+
+    console.log(err)
+
+    return res.json({
+      success: false,
+      message: err.message
+    })
+
+  }
+}
+
+// =========================
+// GET FOLLOW-UP RECORDS (Patient)
+// =========================
+const getMyFollowUp = async (req, res) => {
+  console.log("USER ID FROM TOKEN:", req.userId); // تأكد من وجود userId
+  try {
+
+    const userId = req.userId; // جاي من authUser
+const records = await medicalRecordModel.find({
+  patientId: userId,
+})
+.populate("doctorId", "name") // جلب اسم الدكتور
+.sort({ createdAt: -1 }) // ترتيب من الأحدث للأقدم  
+
+const followUps = records.map(record => ({
+  recordId: record._id,
+  diagnosis: record.diagnosis,
+  followUpDate: record.followUpDate,
+  createdAt: record.createdAt,
+  updates: record.updates,
+  doctorReplies: record.doctorReplies,
+  doctor: record.doctorId || null,
+  status: record.status 
+}))
+
+
+res.json({
+  success: true,
+  records: followUps
+})
+
+console.log("DOCTOE AFTER POPULATE:", records[0]?.doctorId) // تأكد من البيانات بعد populate
+
+  } catch (err) {
+    console.log(err);
+    res.json({
+      success: false,
+      message: "something went wrong please try again "
+    });
+  }
+};
+
+
+// =========================
+// GET SINGLE FOLLOW-UP RECORD (Patient)
+// =========================
+
+const getSingleFollowUp = async (req, res) => {
+  try {
+
+    const userId = req.userId
+    const { id } = req.params
+
+    const record = await medicalRecordModel.findById(id)
+      .populate("doctorId", "name email") // جلب اسم الدكتور وإيميله    
+      .populate("patientId", "name email") // جلب اسم المريض وإيميله
+
+
+    if (!record || record.patientId._id.toString() !== userId.toString()) {
+      return res.json({
+        success: false,
+        message: "Record not found"
+      })
+    }
+
+    res.json({
+      success: true,
+      record:{
+        ...record._doc,
+        patient: record.patientId,
+        doctor: record.doctorId,
+        prescriptions: record.prescriptions || []
+      }
+    })
+
+  } catch (err) {
+    console.log(err)
+    res.json({
+      success: false,
+      message: "Error"
+    })
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // ================= EXPORT =================
 export {
@@ -415,5 +615,9 @@ export {
   bookAppointment,
   listAppointment,
   cancelAppointment,
-  rateDoctor
+  rateDoctor,
+  addFollowUpUpdate,
+  getMyFollowUp,
+  getSingleFollowUp
+
 }

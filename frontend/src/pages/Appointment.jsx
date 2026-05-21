@@ -92,11 +92,11 @@ const Appointment = () => {
                 minute:'2-digit'
             })
 
-            let day = start.getDate()
-            let month = start.getMonth()+1
-            let year = start.getFullYear()
+            let day = start.getDate();
+            let month = start.getMonth()+1;
+            let year = start.getFullYear();
 
-            const slotDate = day + "_" + month + "_" + year
+            const slotDate = day + "_" + month + "_" + year;
 
             const isBooked =
                 docInfo.slots_booked?.[slotDate]?.includes(formattedTime)
@@ -128,14 +128,11 @@ const Appointment = () => {
         if(!slotTime){
             return toast.error("Choose time first ⛔")
         }
+const [year, month, day] = selectedDate.split("-")
 
-        let date = new Date(selectedDate)
+const slotDate = `${day}_${month}_${year}`
 
-        let day = date.getDate()
-        let month = date.getMonth()+1
-        let year = date.getFullYear()
-
-        const slotDate = day + "_" + month + "_" + year
+    
 
         try{
 

@@ -2,108 +2,134 @@ import { createContext, useEffect, useState } from "react"
 import { toast } from "react-toastify"
 import axios from "axios"
 
+axios.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token")
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
+
 export const AppContext = createContext()
 
 const AppContextProvider = (props) => {
 
-const currencySymbol = " EGP "
+  const currencySymbol = " EGP "
 
-const backendUrl = import.meta.env.VITE_BACKEND_URL
+  const backendUrl = import.meta.env.VITE_BACKEND_URL
 
-const [doctors,setDoctors] = useState([])
+  const [doctors, setDoctors] = useState([])
 
-const [token,setToken] = useState(
-localStorage.getItem("token")
-? localStorage.getItem("token")
-: ""
-)
+  // ✅ FIX 1: token handling
+  const [token, setToken] = useState(
+    localStorage.getItem("token") || null
+  )
 
-const [userData,setUserData] = useState(false)
+  const [userData, setUserData] = useState(null)
 
-// ================= GET DOCTORS =================
+  // // ================= AXIOS DEFAULT =================
+  // // 🔥 أهم حركة: تخلي كل الريكوستات تاخد التوكن لوحدها
+  // useEffect(() => {
+  //   if (token) {
+  //     axios.defaults.headers.common["Authorization"] = `Bearer ${token}`
+  //   } else {
+  //     delete axios.defaults.headers.common["Authorization"]
+  //   }
+  // }, [token])
 
-const getDoctosData = async () =>{
+  // ================= GET DOCTORS =================
+  const getDoctosData = async () => {
 
-try{
+    try {
 
-const { data } = await axios.get(
-backendUrl + "/api/doctor/list"
-)
+      const { data } = await axios.get(
+        backendUrl + "/api/doctor/list"
+      )
 
-if(data.success){
-setDoctors(data.doctors)
-}
-else{
-toast.error(data.message)
-}
+      if (data.success) {
+        setDoctors(data.doctors)
+      } else {
+        toast.error(data.message)
+      }
 
-}catch(error){
-console.log(error)
-toast.error(error.message)
-}
+    } catch (error) {
+      console.log(error)
+      toast.error("Failed to load doctors")
+    }
 
-}
+  }
 
-// ================= LOAD USER PROFILE =================
+  // ================= LOAD USER PROFILE =================
+  const loadUserProfileData = async () => {
 
-const loadUserProfileData = async () =>{
+    try {
 
-try{
+      const { data } = await axios.get(
+        backendUrl + "/api/user/get-profile"
+      )
 
-const { data } = await axios.get(
-backendUrl + "/api/user/get-profile",
-{ headers:{ token } }
-)
+      if (data.success) {
+        setUserData(data.userData)
+      } else {
+        toast.error(data.message)
+      }
 
-if(data.success){
-setUserData(data.userData)
-}
-else{
-toast.error(data.message)
-}
+    } catch (error) {
+      console.log(error)
 
-}catch(error){
-console.log(error)
-toast.error(error.message)
-}
+      // 🔥 لو التوكن بايظ → اعمل logout تلقائي
+      if (error.response?.status === 401) {
+        logout()
+        toast.error("Session expired. Please login again.")
+        return
+      } else {
+        toast.error("Failed to load profile")
+      }
+    }
 
-}
+  }
 
-useEffect(()=>{
-getDoctosData()
-},[])
+  // ================= LOGOUT =================
+  const logout = () => {
+    localStorage.removeItem("token")
+    setToken(null)
+    setUserData(null)
+  }
 
-useEffect(()=>{
-if(token){
-loadUserProfileData()
-}
-},[token])
+  // ================= INIT =================
+  useEffect(() => {
+    getDoctosData()
+  }, [])
 
-const value = {
+  useEffect(() => {
+    if (token) {
+      loadUserProfileData()
+    }
+  }, [token])
 
-doctors,
-getDoctosData,
+  const value = {
+    doctors,
+    getDoctosData,
 
-currencySymbol,
+    currencySymbol,
+    backendUrl,
 
-backendUrl,
+    token,
+    setToken,
 
-token,
-setToken,
+    userData,
+    setUserData,
 
-userData,
-setUserData,
-loadUserProfileData
+    loadUserProfileData,
+    logout
+  }
 
-}
-
-return (
-
-<AppContext.Provider value={value}>
-{props.children}
-</AppContext.Provider>
-
-)
+  return (
+    <AppContext.Provider value={value}>
+      {props.children}
+    </AppContext.Provider>
+  )
 
 }
 

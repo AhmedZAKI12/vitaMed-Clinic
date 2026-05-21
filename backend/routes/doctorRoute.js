@@ -10,8 +10,13 @@ import {
   doctorDashboard,
   getRecommendedDoctor,
   doctorProfile,
+  addMedicalRecord,
   updateDoctorProfile,
-  getDoctorReviews
+  getDoctorReviews,
+  getFollowUpUpdates,
+  replyToFollowUp,
+  getDoctorRecords,
+  getSingleRecord
 } from '../controllers/doctorController.js';
 
 import authDoctor from '../middleware/authDoctor.js';
@@ -36,10 +41,19 @@ doctorRouter.get("/dashboard", authDoctor, doctorDashboard)
 
 doctorRouter.get("/profile", authDoctor, doctorProfile)
 
+doctorRouter.post("/add-medical-record", authDoctor, addMedicalRecord)
+
+doctorRouter.post("/get-follow-up", authDoctor, getFollowUpUpdates)
+doctorRouter.get("/follow-ups", authDoctor, getDoctorRecords)
+
 doctorRouter.post("/update-profile", authDoctor, updateDoctorProfile)
+
+doctorRouter.post("/reply-follow-up", authDoctor, replyToFollowUp)
 
 doctorRouter.get("/recommend",getRecommendedDoctor)
 
 doctorRouter.get("/reviews/:docId",getDoctorReviews)
+
+doctorRouter.get("/follow-up/:id", authDoctor, getSingleRecord)
 
 export default doctorRouter;

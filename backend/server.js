@@ -7,7 +7,7 @@ import doctorRouter from "./routes/doctorRoute.js"
 import adminRouter from "./routes/adminRoute.js"
 import { sendEmail } from "./utils/sendEmail.js"
 import reminderJob from "./utils/reminderJob.js"    
-
+import followUpReminder from "./utils/followUPReminder.js"
 // app config
 const app = express()
 const port = process.env.PORT || 4000
@@ -22,7 +22,9 @@ app.use(cors())
 
 
 // Start the reminder job
-reminderJob()
+reminderJob();
+// Start the follow-up reminder job
+followUpReminder();
 
 // test route (Email test)
 app.get("/", async (req, res) => {

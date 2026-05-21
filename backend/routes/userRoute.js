@@ -1,14 +1,26 @@
 import express from 'express';
-import { loginUser, registerUser, getProfile, updateProfile, bookAppointment, listAppointment, cancelAppointment, rateDoctor} from '../controllers/userController.js';
+import { loginUser,
+  registerUser,
+  getProfile,
+  updateProfile,
+  bookAppointment, 
+  listAppointment,
+  cancelAppointment,
+  rateDoctor,
+  addFollowUpUpdate,
+  getMyFollowUp,
+  getSingleFollowUp
+} from '../controllers/userController.js';
 import upload from '../middleware/multer.js';
 import authUser from '../middleware/authUser.js';
 const userRouter = express.Router();
 
 userRouter.post("/register", registerUser)
 userRouter.post("/login", loginUser)
+userRouter.post("/add-follow-up-update", authUser, addFollowUpUpdate)
 
 userRouter.get("/get-profile", authUser, getProfile)
-userRouter.post("/update-profile", upload.single('image'), authUser, updateProfile)
+userRouter.post("/update-profile", authUser, upload.single('image'), updateProfile)
 userRouter.post("/book-appointment", authUser, bookAppointment)
 userRouter.get("/appointments", authUser, listAppointment)
 userRouter.post("/cancel-appointment", authUser, cancelAppointment)
@@ -17,5 +29,8 @@ userRouter.post("/cancel-appointment", authUser, cancelAppointment)
 // userRouter.post("/payment-stripe", authUser, paymentStripe)
 // userRouter.post("/verifyStripe", authUser, verifyStripe)
 userRouter.post("/rate-doctor",authUser,rateDoctor)
+// userRouter.get("/my-follow-up", authUser, getMyFollowUp)
+userRouter.get("/my-follow-ups", authUser, getMyFollowUp) 
+userRouter.get("/my-follow-ups/:id", authUser, getSingleFollowUp)
 
 export default userRouter;

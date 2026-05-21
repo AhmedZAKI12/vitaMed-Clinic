@@ -13,52 +13,58 @@ import Footer from './components/Footer'
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import Verify from './pages/Verify'
+import FollowUp from './pages/FollowUp'
+import FollowUpDetails from './pages/FollowUpDetails'
+import MyFollowUps from './pages/MyFollowUps'
 
 const App = () => {
 
-const location = useLocation()
+  const location = useLocation()
 
-// إخفاء navbar و footer في صفحة login
-const isLoginPage = location.pathname === '/login'
+  // إخفاء navbar و footer في صفحة login
+  const isLoginPage = location.pathname === '/login'
 
-return (
-<div className='bg-gray-50 min-h-screen'>
+  return (
+    <div className='bg-gray-50 min-h-screen'>
 
-  <ToastContainer />
+      <ToastContainer />
 
-  {!isLoginPage && <Navbar />}
+      {!isLoginPage && <Navbar />}
 
-  {isLoginPage ? (
+      {isLoginPage ? (
 
-    // صفحة login بدون container
-    <Routes>
-      <Route path="/login" element={<Login />} />
-    </Routes>
+        // صفحة login بدون container
+        <Routes>
+          <Route path="/login" element={<Login />} />
+        </Routes>
 
-  ) : (
+      ) : (
 
-    // باقي الصفحات داخل container
-    <div className='max-w-7xl mx-auto px-4 md:px-6 lg:px-8'>
-      <Routes>
-        <Route path='/' element={<Home />} />
-        <Route path='/doctors' element={<Doctors />} />
-        <Route path='/doctors/:speciality' element={<Doctors />} />
-        <Route path='/about' element={<About />} />
-        <Route path='/contact' element={<Contact />} />
-        <Route path='/appointment/:docId' element={<Appointment />} />
-        <Route path='/my-appointments' element={<MyAppointments />} />
-        <Route path='/my-profile' element={<MyProfile />} />
-        <Route path='/verify' element={<Verify />} />
-      </Routes>
+        // باقي الصفحات داخل container
+        <div className='max-w-7xl mx-auto px-4 md:px-6 lg:px-8'>
+          <Routes>
+            <Route path='/' element={<Home />} />
+            <Route path='/doctors' element={<Doctors />} />
+            <Route path='/doctors/:speciality' element={<Doctors />} />
+            <Route path='/about' element={<About />} />
+            <Route path='/contact' element={<Contact />} />
+            <Route path='/appointment/:docId' element={<Appointment />} />
+            <Route path='/my-appointments' element={<MyAppointments />} />
+            <Route path='/my-profile' element={<MyProfile />} />
+            <Route path='/verify' element={<Verify />} />
+            <Route path='/follow-up/:id' element={<FollowUp />} />
+            <Route path='/follow-up-details/:id' element={<FollowUpDetails />} />
+            <Route path='/my-follow-ups' element={<MyFollowUps />} />
+          </Routes>
+        </div>
+
+      )}
+
+      {!isLoginPage && <Footer />}
+
     </div>
 
-  )}
-
-  {!isLoginPage && <Footer />}
-
-</div>
-
-)
+  )
 }
 
 export default App
