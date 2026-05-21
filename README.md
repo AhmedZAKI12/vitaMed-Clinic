@@ -23,6 +23,7 @@ Features
 - Appointment cancellation
 - Email appointment reminders
 - Doctor rating and review system
+- followups
 - Admin dashboard
 - Secure MongoDB database storage
 
