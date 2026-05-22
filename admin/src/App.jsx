@@ -11,6 +11,7 @@ import { AdminContext } from './context/AdminContext'
 import Navbar from './components/Navbar'
 import Sidebar from './components/Sidebar'
 import Login from './pages/Login'
+import DoctorChatbot from './components/DoctorChatbot'
 
 // Admin Pages
 import Dashboard from './pages/Admin/Dashboard'
@@ -44,6 +45,8 @@ const App = () => {
     <div className='bg-slate-300 min-h-screen'>
 
       <ToastContainer />
+
+      {dToken && <DoctorChatbot />}
 
       {/* Navbar */}
       <Navbar />

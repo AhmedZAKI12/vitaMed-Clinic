@@ -56,11 +56,7 @@ const appointmentSchema = new mongoose.Schema(
 { timestamps: true }
 );
 
-// ⭐⭐ أهم سطر لمنع الحجز في نفس الوقت
-appointmentSchema.index(
-    { docId: 1, slotDate: 1, slotTime: 1 },
-    { unique: true }
-)
+// The unique index was removed to allow cancelled time slots to be re-booked.
 
 const appointmentModel =
 mongoose.models.Appointment ||

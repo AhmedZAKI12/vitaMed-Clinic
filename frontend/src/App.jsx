@@ -16,10 +16,14 @@ import Verify from './pages/Verify'
 import FollowUp from './pages/FollowUp'
 import FollowUpDetails from './pages/FollowUpDetails'
 import MyFollowUps from './pages/MyFollowUps'
+import Chatbot from './components/Chatbot'
+import { AppContext } from './context/AppContext'
+import { useContext } from 'react'
 
 const App = () => {
 
   const location = useLocation()
+  const { token } = useContext(AppContext)
 
   // إخفاء navbar و footer في صفحة login
   const isLoginPage = location.pathname === '/login'
@@ -28,6 +32,8 @@ const App = () => {
     <div className='bg-gray-50 min-h-screen'>
 
       <ToastContainer />
+
+      {token && <Chatbot />}
 
       {!isLoginPage && <Navbar />}
 
