@@ -3,8 +3,10 @@ import bcrypt from "bcrypt";
 import doctorModel from "../models/doctorModel.js";
 import appointmentModel from "../models/appointmentModel.js";
 import userModel from "../models/userModel.js";
+import medicalRecordModel from "../models/medicalRecordModel.js";
 import cloudinary from "../config/cloudinary.js";
 import { sendEmail } from "../utils/sendEmail.js";
+
 
 // =======================
 // ADMIN LOGIN
@@ -377,6 +379,152 @@ message: error.message,
 }
 };
 
+//admin booking
+
+const adminBookAppointment = async (req, res) => {
+  try {
+
+    const {
+      name,
+      email,
+      phone,
+      docId,
+      slotDate,
+      slotTime
+    } = req.body;
+
+    if (
+      !name ||
+      !email ||
+      !phone ||
+      !docId ||
+      !slotDate ||
+      !slotTime
+    ) {
+      return res.json({
+        success: false,
+        message: "Missing booking data"
+      });
+    }
+
+    // لو المريض موجود
+    let user = await userModel.findOne({ email });
+
+    // لو مش موجود اعمله Account تلقائي
+    if (!user) {
+
+      const hashedPassword = await bcrypt.hash(
+        "AdminCreated123!",
+        10
+      );
+
+      user = await userModel.create({
+        name,
+        email,
+        phone,
+        password: hashedPassword
+      });
+    }
+
+    const userId = user._id;
+
+    const userData = await userModel
+      .findById(userId)
+      .select("-password");
+
+    const docData = await doctorModel.findById(docId);
+
+    if (!docData) {
+      return res.json({
+        success: false,
+        message: "Doctor not found"
+      });
+    }
+
+    const existingAppointment =
+      await appointmentModel.findOne({
+        docId,
+        slotDate,
+        slotTime,
+        cancelled: { $ne: true }
+      });
+
+    if (existingAppointment) {
+      return res.json({
+        success: false,
+        message: "Slot already booked"
+      });
+    }
+
+    const appointment =
+      await appointmentModel.create({
+        userId,
+        docId,
+        slotDate,
+        slotTime,
+        userData,
+        docData,
+        amount: docData.fees,
+        date: Date.now(),
+        status: "pending",
+        bookedBy: "admin"
+      });
+
+    await medicalRecordModel.create({
+      patientId: userId,
+      doctorId: docId,
+      appointmentId: appointment._id,
+      updates: [],
+      doctorReplies: [],
+      followUpRequired: true
+    });
+
+    let slots = docData.slots_booked || {};
+
+    if (!slots[slotDate]) {
+      slots[slotDate] = [];
+    }
+
+    slots[slotDate].push(slotTime);
+
+    await doctorModel.findByIdAndUpdate(
+      docId,
+      { slots_booked: slots }
+    );
+
+    await sendEmail(
+      userData.email,
+      "Appointment Booked - VitaMed Clinic",
+      `Hello ${userData.name},
+
+Your appointment has been booked by the clinic.
+
+Doctor: ${docData.name}
+Date: ${slotDate}
+Time: ${slotTime}
+
+Thank you,
+VitaMed Clinic`
+    );
+
+    res.json({
+      success: true,
+      message: "Appointment booked successfully"
+    });
+
+  } catch (error) {
+
+    console.log(error);
+
+    res.json({
+      success: false,
+      message: error.message
+    });
+
+  }
+};
+
+
 // =======================
 // EXPORTS
 // =======================
@@ -391,4 +539,5 @@ cancelAppointment,
 updateAppointmentStatus,
 completeAppointment,
 addDoctor,
+adminBookAppointment,
 };

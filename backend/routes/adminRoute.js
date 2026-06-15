@@ -8,7 +8,8 @@ import {
   getAllAppointments,
   cancelAppointment,
   completeAppointment,
-  addDoctor
+  addDoctor,
+  adminBookAppointment
 } from "../controllers/adminController.js";
 
 import authAdmin from "../middleware/authAdmin.js";
@@ -79,6 +80,13 @@ adminRouter.post(
   "/complete-appointment",
   authAdmin,
   completeAppointment
+);
+
+// ================= ADMIN BOOK APPOINTMENT =================
+adminRouter.post(
+  "/book-appointment",
+  authAdmin,
+  adminBookAppointment
 );
 
 

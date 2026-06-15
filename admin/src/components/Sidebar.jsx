@@ -8,7 +8,8 @@ import {
   CalendarDays,
   UserPlus,
   Users,
-  User
+  User,
+  ClipboardPlus
 } from "lucide-react";
 
 const Sidebar = () => {
@@ -53,6 +54,11 @@ overflow-y-auto
           <NavLink to="/all-appointments" className={linkClass}>
             <CalendarDays size={18} className={iconClass}/>
             <span>Appointments</span>
+          </NavLink>
+
+          <NavLink to="/book-appointment" className={linkClass}>
+            <ClipboardPlus size={18} className={iconClass}/>
+            <span>Book Appointment</span>
           </NavLink>
 
           <NavLink to="/add-doctor" className={linkClass}>

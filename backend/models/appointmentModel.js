@@ -46,11 +46,18 @@ const appointmentSchema = new mongoose.Schema(
         type: Boolean,
         default: false
     },
-
+    
+            bookedBy: {
+        type: String,
+        enum: ["patient", "admin"],
+        default: "patient"
+        },
+    
     reminderSent: {
         type: Boolean,
         default: false
     }
+
 
 },
 { timestamps: true }

@@ -669,7 +669,7 @@ VitaMed Clinic`
 
         const records = await medicalRecordModel
             .find({ doctorId: docId })
-            .populate("patientId", "name email") // جلب بيانات المريض (الاسم والبريد الإلكتروني)    
+            .populate("patientId", "name email phone image")    
             .sort({ createdAt: -1 });
             console.log("Doctor Records:", records); // 🔥 debug
 

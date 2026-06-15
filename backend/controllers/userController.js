@@ -474,22 +474,35 @@ const addFollowUpUpdate = async (req, res) => {
       
 await record.save()
 
+
     // ✅ send email
-    const doctor = await doctorModel.findById(record.doctorId)
 
-    if (doctor?.email) {
-      await sendEmail(
-        doctor.email,
-        "New Follow-Up Update - VitaMed Clinic",
-        `Hello Dr. ${doctor.name},
+const doctor = await doctorModel.findById(record.doctorId)
+const patient = await userModel.findById(record.patientId)
 
-New update from your patient:
+if (doctor?.email) {
+
+  await sendEmail(
+    doctor.email,
+    "New Follow-Up Update - VitaMed Clinic",
+    `Hello Dr. ${doctor.name},
+
+A new follow-up update has been submitted.
+
+Patient Name: ${patient?.name || "N/A"}
+Patient Phone: ${patient?.phone || "N/A"}
+Patient Email: ${patient?.email || "N/A"}
 
 Pain Level: ${painLevel}/10
 Symptoms: ${symptoms}
-Notes: ${notes || "No notes"}`
-      )
-    }
+Notes: ${notes || "No notes"}
+
+Please login to VitaMed Clinic to review the patient's record.
+
+VitaMed Clinic`
+  )
+
+}
 
     return res.json({
       success: true,

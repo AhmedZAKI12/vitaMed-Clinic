@@ -140,6 +140,36 @@ import { toast } from "react-toastify";
         }
     };
 
+
+        const adminBookAppointment = async (bookingData) => {
+        try {
+
+            const { data } = await axios.post(
+            backendUrl + "/api/admin/book-appointment",
+            bookingData,
+            {
+                headers: {
+                Authorization: `Bearer ${aToken}`,
+                },
+            }
+            );
+
+            return data;
+
+        } catch (error) {
+
+            toast.error(error.message);
+
+            return {
+            success: false,
+            message: error.message,
+            };
+
+        }
+        };
+
+
+
     const value = {
         aToken,
         setAToken,
@@ -153,6 +183,7 @@ import { toast } from "react-toastify";
         completeAppointment,
         getDashData,
         dashData,
+        adminBookAppointment
     };
 
     return (
